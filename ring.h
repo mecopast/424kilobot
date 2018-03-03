@@ -62,7 +62,7 @@ typedef struct{
     uint8_t num;
     uint8_t num_cooperative;
 
-    // uint8_t is_master;
+    //uint8_t is_master;
 
     uint8_t message_recv_delay;
 
@@ -91,6 +91,7 @@ typedef struct
     uint16_t now;
     uint16_t nextShareSending;
     uint8_t cur_motion;
+    uint8_t min_id;
     uint8_t motion_state;
     uint8_t time_active;
     uint8_t move_state;
@@ -104,13 +105,14 @@ typedef struct
     int8_t head, tail;
     int8_t copies;
 
-    // uint8_t master;
+    //uint8_t master;
     
     uint8_t loneliness;
-
-    uint8_t min_id;
-
     bool send_election;
+    bool send_elected;
+    bool has_participated;
+    //status
 
+    
+    
 } USERDATA;
-

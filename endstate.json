@@ -11,30 +11,30 @@
       "ID": 1,
       "direction": 4.7847351245891296,
       "state": {},
-      "x_position": -196.0,
-      "y_position": 90.666664123535156
+      "x_position": -182.66667175292969,
+      "y_position": 101.33333587646484
     },
     {
       "ID": 2,
       "direction": 0.78769389148088065,
       "state": {},
-      "x_position": -156.0,
-      "y_position": 82.666664123535156
+      "x_position": 257.33334350585938,
+      "y_position": 61.333332061767578
     },
     {
       "ID": 3,
       "direction": 5.4553577445187793,
       "state": {},
-      "x_position": -172.02057933213723,
-      "y_position": 52.280319082173342
+      "x_position": -171.0,
+      "y_position": 54.0
     },
     {
       "ID": 4,
       "direction": 4.5578980900875683,
       "state": {},
-      "x_position": -85.0,
-      "y_position": -142.0
+      "x_position": -145.33332824707031,
+      "y_position": 89.333335876464844
     }
   ],
-  "ticks": 409
+  "ticks": 1956
 }

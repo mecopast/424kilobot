@@ -15,15 +15,15 @@
     REGISTER_USERDATA(USERDATA)
 #endif
 
-void recv_election(uint8_t *payload);
-void recv_elected(uint8_t *payload);
-void send_election();
-void send_elected();
+
 
 char isQueueFull()
 {
     return (mydata->tail +1) % QUEUE == mydata->head;
 }
+
+
+
 
 /* Helper function for setting motor speed smoothly
  */
@@ -165,7 +165,7 @@ uint8_t get_nearest_two_neighbors()
 
 void update_color(uint8_t *payload)
 {
-    if (mydata->min_id == 0)
+    if (mydata->min_id == MINID)
     {
     	if (payload[SENDER] == mydata->my_right)
     	{
@@ -248,8 +248,94 @@ void recv_joining(uint8_t *payload)
     if (mydata->my_left == mydata->my_right && mydata->my_id < payload[SENDER])
     {
 		mydata->red = 3;
-        mydata->min_id = 1;
+        //mydata->master = 1;
     }
+#ifdef SIMULATOR
+    printf("%d Left: %d Right: %d\n", mydata->my_id, mydata->my_left, mydata->my_right);
+#endif
+}
+
+void recv_election(uint8_t *payload)
+{
+    uint8_t globalMin = payload[MINID];
+    uint8_t myID = mydata->my_id;
+    uint8_t minSeen = mydata->min_id;
+    
+    
+    printf("my id =  %d Global min: %d min id seen: %d\n", myID, globalMin, minSeen);
+
+    printf("Recieving election here %d Left: %d Right: %d\n", mydata->my_id, mydata->my_left, mydata->my_right);
+    
+    //ignoring irrelevant messages
+    if (payload[ID] == mydata->my_id  || payload[ID] == 0 ) return;
+    
+    // v sends a ELECTING(v) to its successor
+    mydata->send_election = true;
+
+    // v sets m:= m the smalles identifier seen so far
+    //m = v;
+
+    printf("%d",mydata->min_id);
+
+
+    // if v recieves a message ELECTING(w)
+    if(globalMin < minSeen){
+
+        // Elect payload because id is smaller
+        mydata->send_election = true;
+        mydata->send_elected = false;
+        //Set my min id = w
+        //m = w;
+        mydata->min_id = globalMin;
+        mydata->red = 3;
+        mydata->green = 3;
+        mydata->blue = 3;
+        set_color(RGB(mydata->red, mydata->green, mydata->blue));
+        
+    }else if(globalMin > minSeen){
+        mydata->send_election = true;
+        mydata->red = 3;
+        mydata->green = 0;
+        mydata->blue = 0;
+        mydata->min_id = minSeen;
+        set_color(RGB(mydata->red, mydata->green, mydata->blue));
+        
+    }else if(myID == globalMin){
+        //Send elected
+        printf("electing leader\n");
+        mydata->send_elected = true;
+        mydata->red = 3;
+        mydata->green = 3;
+        mydata->blue = 3;
+        set_color(RGB(mydata->red, mydata->green, mydata->blue));
+        
+        
+    }
+    
+    // // Creates a "master" bot upon ring creation. 
+    // // Also boolean switch for master
+    // if (mydata->my_left == mydata->my_right && mydata->my_id < payload[SENDER])
+    // {
+	// 	mydata->red = 3;
+    //     //mydata->master = 1;
+    // }
+#ifdef SIMULATOR
+    printf("%d Left: %d Right: %d\n", mydata->my_id, mydata->my_left, mydata->my_right);
+#endif
+}
+
+void recv_elected(uint8_t *payload)
+{
+
+    uint8_t w = payload[MINID];
+    uint8_t v = mydata->my_id;
+    uint8_t m = mydata->min_id;
+    if(w != v){
+        
+    }
+    
+    //Second if goes here already knows who leader is
+    //if()
 #ifdef SIMULATOR
     printf("%d Left: %d Right: %d\n", mydata->my_id, mydata->my_left, mydata->my_right);
 #endif
@@ -306,46 +392,47 @@ void message_rx(message_t *m, distance_measurement_t *d)
                 recv_move(m->data);
                 break;
             case ELECTION:
-                recv_election(m->data);
+                if(m->data[ID] == mydata->my_left){
+                    recv_election(m->data);
+                }
                 break;
             case ELECTED:
-                recv_elected(m->data);
+                if(m->data[ID] == mydata->my_left){
+                    recv_elected(m->data);
+                }
                 break;
-        
         }
     }
 }
 
 
-char enqueue_message(uint8_t m) //if msg==election
+char enqueue_message(uint8_t m)
 {
 #ifdef SIMULATOR
  //   printf("%d, Prepare %d\n", mydata->my_id, m);
 #endif
     if (!isQueueFull())
     {
-       
-            mydata->message[mydata->tail].data[MSG] = m;
-            mydata->message[mydata->tail].data[ID] = mydata->my_id;
-            mydata->message[mydata->tail].data[RIGHT_ID] = mydata->my_right;
-            mydata->message[mydata->tail].data[LEFT_ID] = mydata->my_left;
-            mydata->message[mydata->tail].data[RECEIVER] = mydata->my_right;
-            mydata->message[mydata->tail].data[SENDER] = mydata->my_id;
-            mydata->message[mydata->tail].data[STATE] = mydata->state;
-            //Sending Color Data 
-            mydata->message[mydata->tail].data[COLOR] = RGB(mydata->red,mydata->green,mydata->blue);
-            //Sending Master Statues 
-            if(m == ELECTION){
-                mydata->message[mydata->tail].data[MINID] = mydata->min_id;
-            }
-            // }
-            // else{
-            //     mydata->message[mydata->tail].data[MINID] = mydata->master;
-            // }
-            mydata->message[mydata->tail].type = NORMAL;
-            mydata->message[mydata->tail].crc = message_crc(&mydata->message[mydata->tail]);
-            mydata->tail++;
-            mydata->tail = mydata->tail % QUEUE;
+        
+        mydata->message[mydata->tail].data[MSG] = m;
+        mydata->message[mydata->tail].data[ID] = mydata->my_id;
+        mydata->message[mydata->tail].data[RIGHT_ID] = mydata->my_right;
+        mydata->message[mydata->tail].data[LEFT_ID] = mydata->my_left;
+        mydata->message[mydata->tail].data[RECEIVER] = mydata->my_right;
+        mydata->message[mydata->tail].data[SENDER] = mydata->my_id;
+        mydata->message[mydata->tail].data[STATE] = mydata->state;
+        //Sending Color Data 
+		mydata->message[mydata->tail].data[COLOR] = RGB(mydata->red,mydata->green,mydata->blue);
+        //Sending Master Statues 
+        
+        if(m == ELECTION){
+            mydata->message[mydata->tail].data[MINID] = mydata->my_id;
+        }
+    
+        mydata->message[mydata->tail].type = NORMAL;
+        mydata->message[mydata->tail].crc = message_crc(&mydata->message[mydata->tail]);
+        mydata->tail++;
+        mydata->tail = mydata->tail % QUEUE;
         return 1;
     }
     return 0;
@@ -371,11 +458,11 @@ void send_joining()
             mydata->my_right = mydata->nearest_neighbors[i].right_id;
             mydata->my_left = mydata->nearest_neighbors[i].id;
             enqueue_message(JOIN);
+            mydata->send_election = true;
 #ifdef SIMULATOR
             printf("Sending Joining %d right=%d left=%d\n", mydata->my_id, mydata->my_right, mydata->my_left);
 #endif
         }
-        mydata->send_election = true;        
     }
 }
 
@@ -391,7 +478,25 @@ void send_sharing()
     }
 }
 
+void send_election(){
+    if(mydata->send_election && mydata->state == COOPERATIVE  && !isQueueFull()){
+        
+        // Sending Election
+        enqueue_message(ELECTION);
+        mydata->send_election = false;
+        printf("Sending election\n");
+    }
+}
 
+void send_elected(){
+    
+    if(mydata->send_elected && mydata->state == COOPERATIVE  && !isQueueFull()){      
+        // Sending Elected
+        enqueue_message(ELECTED);
+        mydata->send_elected = false;
+        printf("Sending elected\n");
+    }
+}
 
 
 
@@ -459,12 +564,13 @@ void reset_self()
     mydata->state = AUTONOMOUS;
     mydata->my_left = mydata->my_right = mydata->my_id;
     mydata->num_neighbors = 0;
-    
+    mydata->has_participated = false;
+    mydata->min_id = mydata->my_id;
     mydata->red = 0;
     mydata->green = 0;
     mydata->blue = 0;
     
-    mydata->min_id = 0;
+    //mydata->master = 0;
 }
 //This function is called when message_recv_delay is > than X time
 //Specific to ring
@@ -480,7 +586,7 @@ void remove_neighbor(nearest_neighbor_t lost)
             mydata->my_right = lost.right_id;
             // if (lost.is_master == 1)
             // {
-            //     mydata->min_id = 1;
+            //     //mydata->master = 1;
             // }
         }
         else
@@ -505,31 +611,17 @@ void remove_neighbor(nearest_neighbor_t lost)
     mydata->num_neighbors--;
 }
 
-
-void send_election()
-{
-   if(mydata->send_election && !isQueueFull()){
-        enqueue_message(ELECTION);
-        mydata->send_election = false;
-        printf("sending election\n");
-    }
-}
-
-void send_elected()
-{
-
-}
-
-
 void loop()
 {
-
-    delay(5);
+    delay(30);
     
     //send_move();
+    send_election();
+    send_elected();
     send_joining();
     send_sharing();
-    send_election();
+    
+    
     move(mydata->now);
 
     uint8_t i;
@@ -543,8 +635,26 @@ void loop()
             break;
         }
     } 
+
+    // // Master bot color switching
+    // if (mydata->red == 3)
+    // {
+    //     if (mydata->now % 100 == 0)
+    //     {
+    //         mydata->red = 0;
+    //         mydata->green = 3;
+    //     }
+    // }
+    // else if (mydata->red == 0 && mydata->min_id == MINID)
+    // {
+    //     if (mydata->now % 100 == 0)
+    //     {
+    //         mydata->red = 3;
+    //         mydata->green = 0;
+    //     }
+    // }
     
-    set_color(RGB(mydata->red, mydata->green, mydata->blue));
+    //set_color(RGB(mydata->red, mydata->green, mydata->blue));
 
     mydata->loneliness++;
     
@@ -591,7 +701,6 @@ void setup() {
     rand_seed(rand_hard());
 
     mydata->my_id = rand_soft();
-    mydata->send_election = false;    
     
     mydata->state = AUTONOMOUS;
     mydata->my_left = mydata->my_right = mydata->my_id;
@@ -603,7 +712,7 @@ void setup() {
     mydata->motion_state = STOP;
     mydata->time_active = 0;
     mydata->move_state = 0;
-    mydata->min_id = 0;  //Set Master to 0
+    //mydata->master = 0;  //Set Master to 0
     mydata->move_motion[0].motion = LEFT;
     mydata->move_motion[0].motion = 3;
     mydata->move_motion[1].motion = RIGHT;
@@ -623,6 +732,11 @@ void setup() {
     mydata->head = 0;
     mydata->tail = 0;
     mydata->copies = 0;
+    mydata->send_election = false;
+    mydata->min_id = mydata->my_id;
+    
+    
+
    
 #ifdef SIMULATOR
     printf("Initializing %d %d\n", mydata->my_id, mydata->token);
@@ -646,31 +760,6 @@ char *cb_botinfo(void)
     return botinfo_buffer;
 }
 #endif
-//********************************************************************/
-void recv_election(uint8_t *payload)
-{
-    printf("recv election called\n");
-    //ignoring irrelevant messages
-    if (payload[ID] == mydata->my_id  || payload[ID] == 0 ) return;
-
-    //send election to it's successor
-    send_election();
-
-    //v sets min to smallest identifier
-   
-    mydata->send_election = true;
-#ifdef SIMULATOR
-    printf("%d Left: %d Right: %d\n", mydata->my_id, mydata->my_left, mydata->my_right);
-#endif
-}
-
-void recv_elected(uint8_t *payload){
-    printf("recv elected called\n");
-    //lines 12-14
-    //set the color values?? to signal the leader
-}
-
-
 
 int main() {
     kilo_init();
@@ -681,8 +770,3 @@ int main() {
     
     return 0;
 }
-
-//receieve/send election functions
-//initiator flag set to true for joining - else false
-//m is the minid
-//v is the node id
