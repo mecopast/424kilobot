@@ -287,18 +287,14 @@ void recv_election(uint8_t *payload)
         //Set my min id = w
         //m = w;
         mydata->min_id = globalMin;
-        mydata->red = 3;
-        mydata->green = 3;
+        mydata->red = 0;
+        mydata->green = 0;
         mydata->blue = 3;
         set_color(RGB(mydata->red, mydata->green, mydata->blue));
         
     }else if(globalMin > minSeen){
         mydata->send_election = true;
-        mydata->red = 3;
-        mydata->green = 0;
-        mydata->blue = 0;
-        mydata->min_id = minSeen;
-        set_color(RGB(mydata->red, mydata->green, mydata->blue));
+        payload[MINID] = minSeen;
         
     }else if(myID == globalMin){
         //Send elected
@@ -569,6 +565,8 @@ void reset_self()
     mydata->red = 0;
     mydata->green = 0;
     mydata->blue = 0;
+    set_color(RGB(mydata->red, mydata->green, mydata->blue));
+    
     
     //mydata->master = 0;
 }
